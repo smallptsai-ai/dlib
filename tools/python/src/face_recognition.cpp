@@ -174,6 +174,53 @@ boost::python::list chinese_whispers_clustering(boost::python::list descriptors,
     return clusters;
 }
 
+boost::python::list chinese_whispers_clustering_with_edge_hints(boost::python::list descriptors, float threshold, boost::python::dict edge_hints)
+{
+    boost::python::list clusters;
+
+    size_t num_descriptors = len(descriptors);
+
+    // This next bit of code creates a graph of connected objects and then uses the Chinese
+    // whispers graph clustering algorithm to identify how many objects there are and which
+    // objects belong to which cluster.
+    std::vector<sample_pair> edges;
+    std::vector<unsigned long> labels;
+    for (size_t i = 0; i < num_descriptors; ++i)
+    {
+        boost::python::dict dict_i;
+        if (edge_hints.has_key(i))
+            dict_i = boost::python::dict(edge_hints[i]);
+
+        for (size_t j = i+1; j < num_descriptors; ++j)
+        {
+            if (!dict_i.is_none() && dict_i.has_key(j))
+            {                    
+                int v = boost::python::extract<int>(dict_i[j]);
+
+                // if hint[i][j] is 1, add edge
+                if (v) 
+                    edges.push_back(sample_pair(i,j));
+                
+                // if hint[i][j] is 0, no edge
+                continue;
+            }
+
+            // (i, j) not in hint, calculate length by threshold
+            matrix<double,0,1>& first_descriptor = boost::python::extract<matrix<double,0,1>&>(descriptors[i]);
+            matrix<double,0,1>& second_descriptor = boost::python::extract<matrix<double,0,1>&>(descriptors[j]);
+
+            if (length(first_descriptor-second_descriptor) < threshold)
+                edges.push_back(sample_pair(i,j));
+        }
+    }
+    const auto num_clusters = chinese_whispers(edges, labels);
+    for (size_t i = 0; i < labels.size(); ++i)
+    {
+        clusters.append(labels[i]);
+    }
+    return clusters;
+}
+
 void save_face_chips (
     object img,
     const std::vector<full_object_detection>& faces,
@@ -240,6 +287,9 @@ void bind_face_recognition()
         );
     def("chinese_whispers_clustering", &chinese_whispers_clustering, (arg("descriptors"), arg("threshold")),
         "Takes a list of descriptors and returns a list that contains a label for each descriptor. Clustering is done using dlib::chinese_whispers."
+        );
+    def("chinese_whispers_clustering_with_edge_hints", &chinese_whispers_clustering_with_edge_hints, (arg("descriptors"), arg("threshold"), arg("edge_hints")),
+        "Takes a list of descriptors along with hints and returns a list that contains a label for each descriptor. Clustering is done using dlib::chinese_whispers."
         );
 
     {
