@@ -174,6 +174,27 @@ boost::python::list chinese_whispers_clustering(boost::python::list descriptors,
     return clusters;
 }
 
+boost::python::list chinese_whispers_clustering_test(boost::python::list descriptors)
+{
+    boost::python::list clusters;
+
+    size_t num_descriptors = len(descriptors);
+
+    for (size_t i = 0; i < num_descriptors; ++i)
+    {
+        for (size_t j = i+1; j < num_descriptors; ++j)
+        {
+            matrix<double,0,1>& first_descriptor = boost::python::extract<matrix<double,0,1>&>(descriptors[i]);
+            matrix<double,0,1>& second_descriptor = boost::python::extract<matrix<double,0,1>&>(descriptors[j]);
+
+            auto len = length(first_descriptor-second_descriptor);
+            clusters.append(len);
+        }
+    }
+    return clusters;
+}
+
+
 boost::python::list chinese_whispers_clustering_with_edge_hints(boost::python::list descriptors, float threshold, boost::python::dict edge_hints)
 {
     boost::python::list clusters;
@@ -286,6 +307,9 @@ void bind_face_recognition()
         "Takes an image and a full_object_detections object that reference faces in that image and saves the faces with the specified file name prefix.  The faces will be rotated upright and scaled to 150x150 pixels."
         );
     def("chinese_whispers_clustering", &chinese_whispers_clustering, (arg("descriptors"), arg("threshold")),
+        "Takes a list of descriptors and returns a list that contains a label for each descriptor. Clustering is done using dlib::chinese_whispers."
+        );
+    def("chinese_whispers_clustering_test", &chinese_whispers_clustering_test, (arg("descriptors")),
         "Takes a list of descriptors and returns a list that contains a label for each descriptor. Clustering is done using dlib::chinese_whispers."
         );
     def("chinese_whispers_clustering_with_edge_hints", &chinese_whispers_clustering_with_edge_hints, (arg("descriptors"), arg("threshold"), arg("edge_hints")),
