@@ -174,6 +174,38 @@ boost::python::list chinese_whispers_clustering(boost::python::list descriptors,
     return clusters;
 }
 
+boost::python::list chinese_whispers_clustering_weight(boost::python::list descriptors, double weight_scale)
+{
+    boost::python::list clusters;
+
+    size_t num_descriptors = len(descriptors);
+
+    // This next bit of code creates a graph of connected objects and then uses the Chinese
+    // whispers graph clustering algorithm to identify how many objects there are and which
+    // objects belong to which cluster.
+    std::vector<sample_pair> edges;
+    std::vector<unsigned long> labels;
+    for (size_t i = 0; i < num_descriptors; ++i)
+    {
+        for (size_t j = i+1; j < num_descriptors; ++j)
+        {
+            matrix<double,0,1>& first_descriptor = boost::python::extract<matrix<double,0,1>&>(descriptors[i]);
+            matrix<double,0,1>& second_descriptor = boost::python::extract<matrix<double,0,1>&>(descriptors[j]);
+
+            double dist = (2-length(first_descriptor-second_descriptor))/2;
+            if (dist > 0.0)
+                dist = std::pow(dist, weight_scale);
+            edges.push_back(sample_pair(i,j, dist));
+        }
+    }
+    const auto num_clusters = chinese_whispers(edges, labels);
+    for (size_t i = 0; i < labels.size(); ++i)
+    {
+        clusters.append(labels[i]);
+    }
+    return clusters;
+}
+
 boost::python::list chinese_whispers_clustering_test(boost::python::list descriptors)
 {
     boost::python::list clusters;
@@ -309,9 +341,9 @@ void bind_face_recognition()
     def("chinese_whispers_clustering", &chinese_whispers_clustering, (arg("descriptors"), arg("threshold")),
         "Takes a list of descriptors and returns a list that contains a label for each descriptor. Clustering is done using dlib::chinese_whispers."
         );
-    def("chinese_whispers_clustering_test", &chinese_whispers_clustering_test, (arg("descriptors")),
+    def("chinese_whispers_clustering_weight", &chinese_whispers_clustering_weight, (arg("descriptors"), arg("weight_scale")),
         "Takes a list of descriptors and returns a list that contains a label for each descriptor. Clustering is done using dlib::chinese_whispers."
-        );
+        );        
     def("chinese_whispers_clustering_with_edge_hints", &chinese_whispers_clustering_with_edge_hints, (arg("descriptors"), arg("threshold"), arg("edge_hints")),
         "Takes a list of descriptors along with hints and returns a list that contains a label for each descriptor. Clustering is done using dlib::chinese_whispers."
         );
